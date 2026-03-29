@@ -1,6 +1,6 @@
-name: "legal_discovery_env"
-version: "1.0.0"
-description: "A CLAT-inspired legal discovery and case routing simulation."
-action: "Action"
-observation: "Observation"
+name: legal_discovery_env
+version: 1.0.0
+description: Legal discovery simulation
+action: Action
+observation: Observation
 
