@@ -13,4 +13,4 @@ COPY inference.py .
 COPY openenv.yaml .
 
 # 5. Tell the container to run your evaluation script
-CMD ["python", "-u", "inference.py"]
+CMD ["uvicorn", "server.app:app", "--host", "0.0.0.0", "--port", "7860"]
