@@ -1,16 +1,20 @@
-# 1. Use a lightweight Python image
-FROM python:3.10-slim
+FROM python:3.11-slim
 
-# 2. Set the folder where our code lives
 WORKDIR /app
 
-# 3. Install the required tools (Now including FastAPI for the Meta Ping)
-RUN pip install --no-cache-dir pydantic openai openenv-core fastapi uvicorn
+# 1. Install libraries directly to avoid 'pip install .' metadata errors
+RUN pip install --no-cache-dir \
+    openenv-core \
+    fastapi \
+    uvicorn \
+    pydantic \
+    openai
 
-# 4. Copy your files into the container
-COPY env.py .
-COPY inference.py .
-COPY openenv.yaml .
+# 2. Copy EVERYTHING (including the server folder)
+COPY . .
 
-# 5. Tell the container to run your evaluation script
+# 3. Expose the port
+EXPOSE 7860
+
+# 4. Start the server directly
 CMD ["uvicorn", "server.app:app", "--host", "0.0.0.0", "--port", "7860"]
