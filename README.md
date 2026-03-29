@@ -37,4 +37,4 @@ Our baseline testing shows significant score variance, proving the environment's
 **Author:** Daksh Jain  
 **Category:** Legal Tech / AI Safety & Evaluation
 
-Check out the configuration reference at https://huggingface.co/docs/hub/spaces-config-reference
+Check out the configuration reference at https://huggingface.co/docs/hub/spaces-config-reference 
