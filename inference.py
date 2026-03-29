@@ -14,7 +14,7 @@ API_BASE_URL = os.environ.get("API_BASE_URL", "https://openrouter.ai/api/v1")
 MODEL_NAME = os.environ.get("MODEL_NAME", "openrouter/free")
 HF_TOKEN = os.environ.get("HF_TOKEN")
 
-LOCAL_TEST_KEY = "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" 
+LOCAL_TEST_KEY = os.getenv("OPENROUTER_API_KEY") 
 
 client = OpenAI(
     base_url=API_BASE_URL,
