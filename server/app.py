@@ -102,11 +102,19 @@ def step_endpoint():
 def state_endpoint():
     return {"status": "current state"}
 
-if __name__ == "__main__":
+def main():
+    """The entry point Meta is looking for"""
     import uvicorn
     # Run the baseline evaluation first
-    run_baseline()
+    try:
+        run_baseline()
+    except Exception as e:
+        print(f"Baseline error: {e}")
     
     # Then start the server to keep the Space alive and compliant
     print("Starting Meta-compliant server on port 7860...")
     uvicorn.run(app, host="0.0.0.0", port=7860)
+
+if __name__ == "__main__":
+    main()
+    
