@@ -1,0 +1,7 @@
+version = 1
+revision = 1
+
+[[package]]
+name = "legal-discovery-env"
+version = "1.0.0"
+source = { virtual = "." }
