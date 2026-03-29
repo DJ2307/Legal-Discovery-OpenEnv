@@ -1,7 +1,3 @@
-[build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
-
 [project]
 name = "legal-discovery-env"
 version = "1.0.0"
@@ -12,3 +8,10 @@ dependencies = [
     "uvicorn",
     "pydantic"
 ]
+
+[project.scripts]
+server = "server.app:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
