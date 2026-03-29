@@ -1,0 +1,10 @@
+[project]
+name = "legal-discovery-env"
+version = "1.0.0"
+description = "Legal discovery simulation"
+dependencies = [
+    "openenv-core",
+    "fastapi",
+    "uvicorn",
+    "pydantic"
+]
