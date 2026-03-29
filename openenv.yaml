@@ -1,6 +1,15 @@
-name: legal_discovery_env
-version: 1.0.0
-description: Legal discovery simulation
-action: Action
-observation: Observation
+name: "legal-discovery-env"
+version: "1.0.0"
+description: "A CLAT-inspired legal discovery and case routing simulation."
 
+# This tells the Meta bot EXACTLY where your code is
+entrypoint: "server.app:main"
+env_class: "server.env:LegalDiscoveryEnv"
+
+action_space:
+  type: "JSON"
+  description: "Must output action_type (gather_evidence or route_case) and respective targets."
+
+observation_space:
+  type: "Text"
+  description: "Returns client emails, document contents, or error messages."
