@@ -1,9 +1,1 @@
-env_name: "LegalDiscoveryEnv"
-description: "A CLAT-inspired legal discovery and case routing simulation."
-version: "1.0.0"
-action_space:
-  type: "JSON"
-  description: "Must output action_type (gather_evidence or route_case) and respective targets."
-observation_space:
-  type: "Text"
-  description: "Returns client emails, document contents, or error messages."
+
