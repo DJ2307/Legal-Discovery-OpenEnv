@@ -80,12 +80,13 @@ def run_baseline():
             # 5. Step the environment forward
             current_obs, reward, done, internal_state = env.step_environment(action, internal_state, current_obs)
 
-            # 6. Final Grader Calculation (Uses your real logic)
+                    # 6. Final Grader Calculation
         task_score = env.grade_environment(internal_state)
         
-        # STRICT META LOG: Force it to print beautifully clean floats like 0.85
-        print(f"[END] {round(task_score, 2)}")
+        # STRICT FORMATTING: Forces exactly 2 decimal places (e.g., 0.50, 0.95)
+        print(f"[END] {task_score:.2f}")
         total_score += task_score
+
         
 # --- META PING/WEB SERVER COMPLIANCE ---
 app = FastAPI()
