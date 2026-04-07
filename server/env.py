@@ -69,7 +69,8 @@ def reset_environment(task_difficulty: str):
 # ==========================================
 
 def step_environment(action: LegalAction, internal_state: dict, current_obs: LegalObservation):
-    reward = 0.0
+    # We deleted the "fake" safe_reward. We now use ONE native reward strictly between 0 and 1.
+    reward = 0.50 
     done = False
     
     if action.action_type == "gather_evidence":
@@ -78,15 +79,20 @@ def step_environment(action: LegalAction, internal_state: dict, current_obs: Leg
         current_obs.latest_evidence_text = f"[{doc_name}]: {doc_text}"
         if doc_name not in current_obs.gathered_documents:
             current_obs.gathered_documents.append(doc_name)
-        reward = 0.40 # Discovery cost
+        
+        # NATIVE FLOAT: A minor step cost, but strictly > 0
+        reward = 0.40 
         
     elif action.action_type == "route_case":
         if action.route_decision == internal_state["current_task"]["correct_route"]:
-            reward = 0.95
+            # NATIVE FLOAT: Major success, but strictly < 1.0
+            reward = 0.95  
         else:
-            reward = 0.05 # Malpractice penalty
+            # NATIVE FLOAT: Malpractice penalty, but strictly > 0.0
+            reward = 0.05  
         done = True
         
+    # We add the safe decimal directly to your internal points!
     internal_state["current_points"] += reward
     internal_state["step_count"] += 1
     
@@ -94,7 +100,21 @@ def step_environment(action: LegalAction, internal_state: dict, current_obs: Leg
         done = True
         
     internal_state["is_done"] = done
+    
+    # Return the pure, honest reward. No faking it.
     return current_obs, reward, done, internal_state
+
+def grade_environment(internal_state: dict) -> float:
+    # HONEST LOGIC: Calculate based on evidence steps
+    evidence_steps = max(0, internal_state["step_count"] - 1)
+    raw_score = 1.0 - (evidence_steps * 0.05)
+    
+    # SAFETY: Clamp the score between 0.05 and 0.95 so it never touches 0.0 or 1.0
+    safe_score = max(0.05, min(0.95, float(raw_score)))
+    
+    # PRECISION: Force Python to round to exactly 2 decimal places (e.g., 0.85)
+    return round(safe_score, 2)
+
 def grade_environment(internal_state: dict) -> float:
     # HONEST LOGIC: Did they fail to get positive points?
     if internal_state["current_points"] <= 0: 
