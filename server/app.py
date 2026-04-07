@@ -28,16 +28,15 @@ client = OpenAI(
 )
 MODEL = os.environ.get("MODEL_NAME", MODEL_NAME) # Respects Meta's Model if they inject one
 
-
-
 def run_baseline():
-    print("--- STARTING AUTOMATED BASELINE EVALUATION ---")
     total_score = 0.0
 
     # Loop through all 3 tasks (Easy, Medium, Hard)
     for task in env.TASKS:
         difficulty = task["difficulty"]
-        print(f"\n[Evaluating Task: {difficulty.upper()}]")
+        
+        # 🤖 STRICT META LOG: Start of task
+        print(f"[START] {difficulty}")
 
         # 1. Reset Environment
         current_obs, internal_state = env.reset_environment(difficulty)
@@ -72,11 +71,10 @@ def run_baseline():
                 
                 action = env.LegalAction(**llm_output)
                 
-                target = action.document_requested if action.action_type == "gather_evidence" else action.route_decision
-                print(f"AI Decision -> Action: {action.action_type} | Target: {target}")
+                # 🤖 STRICT META LOG: Every single action the AI takes
+                print(f"[STEP] {json.dumps(llm_output)}")
                 
             except Exception as e:
-                print(f"LLM produced invalid output. Halting task. Error: {e}")
                 break 
 
             # 5. Step the environment forward
@@ -84,11 +82,11 @@ def run_baseline():
 
         # 6. Final Grader Calculation
         task_score = env.grade_environment(internal_state)
-        print(f"Task '{difficulty}' Final Score: {task_score}")
+        
+        # 🤖 STRICT META LOG: End of task and final score
+        print(f"[END] {task_score}")
         total_score += task_score
-
-    print(f"\n--- BASELINE COMPLETE. AVERAGE SCORE: {total_score / len(env.TASKS):.2f} ---")
-
+                    
 # --- META PING/WEB SERVER COMPLIANCE ---
 app = FastAPI()
 
