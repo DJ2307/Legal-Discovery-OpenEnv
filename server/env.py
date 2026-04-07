@@ -78,13 +78,13 @@ def step_environment(action: LegalAction, internal_state: dict, current_obs: Leg
         current_obs.latest_evidence_text = f"[{doc_name}]: {doc_text}"
         if doc_name not in current_obs.gathered_documents:
             current_obs.gathered_documents.append(doc_name)
-        reward = -2.0 # Discovery cost
+        reward = 0.40 # Discovery cost
         
     elif action.action_type == "route_case":
         if action.route_decision == internal_state["current_task"]["correct_route"]:
-            reward = 50.0  
+            reward = 0.95
         else:
-            reward = -100.0 # Malpractice penalty
+            reward = 0.05 # Malpractice penalty
         done = True
         
     internal_state["current_points"] += reward
