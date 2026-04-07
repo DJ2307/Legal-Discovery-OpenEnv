@@ -16,18 +16,18 @@ HF_TOKEN = os.environ.get("HF_TOKEN")
 
 LOCAL_TEST_KEY = os.getenv("OPENROUTER_API_KEY") 
 
-# SURE-SHOT FIX: Guarantee a string is always passed to OpenAI
-api_key_val = os.environ.get("OPENAI_API_KEY") or os.environ.get("OPENROUTER_API_KEY") or LOCAL_TEST_KEY
+# Check for Meta's exact variables first, then our fallbacks
+api_key_val = os.environ.get("HF_TOKEN") or os.environ.get("OPENAI_API_KEY") or os.environ.get("OPENROUTER_API_KEY") or LOCAL_TEST_KEY
 
-# If all of the above are None or empty, force a dummy string so the Meta bot doesn't crash
 if not api_key_val:
     api_key_val = "dummy-key-for-meta-validator"
 
 client = OpenAI(
-    base_url=API_BASE_URL,
+    base_url=os.environ.get("API_BASE_URL", API_BASE_URL), # Respects Meta's URL if they inject one
     api_key=api_key_val
 )
-MODEL = MODEL_NAME
+MODEL = os.environ.get("MODEL_NAME", MODEL_NAME) # Respects Meta's Model if they inject one
+
 
 
 def run_baseline():
