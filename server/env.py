@@ -97,8 +97,14 @@ def step_environment(action: LegalAction, internal_state: dict, current_obs: Leg
     return current_obs, reward, done, internal_state
 
 def grade_environment(internal_state: dict) -> float:
+    # 1. If they failed and points are 0 or negative, return the minimum allowed bound (0.01)
     if internal_state["current_points"] <= 0: 
-        return 0.0 
+        return 0.01 
         
+    # 2. Calculate the raw score based on how efficiently they found evidence
     evidence_steps = max(0, internal_state["step_count"] - 1)
-    return max(0.0, min(1.0, 1.0 - (evidence_steps * 0.05)))
+    raw_score = 1.0 - (evidence_steps * 0.05)
+    
+    # 3. STRICT CLAMP: mathematically force the final score to be strictly between 0 and 1
+    return max(0.01, min(0.99, raw_score))
+    
