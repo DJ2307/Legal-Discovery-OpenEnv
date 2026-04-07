@@ -80,17 +80,13 @@ def run_baseline():
             # 5. Step the environment forward
             current_obs, reward, done, internal_state = env.step_environment(action, internal_state, current_obs)
 
-                # 6. Final Grader Calculation
-        raw_score = env.grade_environment(internal_state)
+            # 6. Final Grader Calculation (Uses your real logic)
+        task_score = env.grade_environment(internal_state)
         
-        # SQUEEZE THE SCORE: Force it strictly between 0 and 1
-        clamped_score = max(0.01, min(0.99, float(raw_score)))
+        # STRICT META LOG: Force it to print beautifully clean floats like 0.85
+        print(f"[END] {round(task_score, 2)}")
+        total_score += task_score
         
-        # 🤖 STRICT META LOG: End of task and final score
-        print(f"[END] {clamped_score}")
-        total_score += clamped_score
-
-                    
 # --- META PING/WEB SERVER COMPLIANCE ---
 app = FastAPI()
 
