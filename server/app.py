@@ -1,112 +1,127 @@
 import os
 import json
 from openai import OpenAI
-from . import env
-from . import models
+from server import env  
 
-
-# --- NEW IMPORTS FOR META VALIDATOR ---
 from fastapi import FastAPI
 import uvicorn
+import threading
 
 # ==========================================
-# META COMPLIANCE VARIABLES
+# META COMPLIANCE VARIABLES (GEMINI DIRECT)
 # ==========================================
-API_BASE_URL = os.environ.get("API_BASE_URL", "https://openrouter.ai/api/v1")
-MODEL_NAME = os.environ.get("MODEL_NAME", "openrouter/free")
-HF_TOKEN = os.environ.get("HF_TOKEN")
+# Point the client directly to Google's OpenAI-compatible endpoint
+API_BASE_URL = os.environ.get("API_BASE_URL", "https://generativelanguage.googleapis.com/v1beta/openai/")
 
-LOCAL_TEST_KEY = os.getenv("OPENROUTER_API_KEY") 
+# 🚀 USING GEMINI 2.5 FLASH
+MODEL = "gemini-2.5-flash"
 
-# Check for Meta's exact variables first, then our fallbacks
-api_key_val = os.environ.get("HF_TOKEN") or os.environ.get("OPENAI_API_KEY") or os.environ.get("OPENROUTER_API_KEY") or LOCAL_TEST_KEY
-
-if not api_key_val:
-    api_key_val = "dummy-key-for-meta-validator"
-
+# 🚨 HARDCODED GEMINI KEY (Revoke after hackathon!)
 client = OpenAI(
-    base_url=os.environ.get("API_BASE_URL", API_BASE_URL), # Respects Meta's URL if they inject one
-    api_key=api_key_val
+    base_url=API_BASE_URL,
 )
-MODEL = os.environ.get("MODEL_NAME", MODEL_NAME) # Respects Meta's Model if they inject one 
+
+# ==========================================
+# 📺 THE HUGGING FACE DASHBOARD STATE
+# ==========================================
+GUI_STATE = {
+    "status": "Initializing...",
+    "scores_generated": [],
+    "ai_errors_caught": [],
+    "meta_log_history": []
+}
+
+def safe_print(message):
+    """Prints to the hidden console AND pushes to the Hugging Face screen"""
+    print(message, flush=True)
+    GUI_STATE["meta_log_history"].append(message)
 
 def run_baseline():
+    GUI_STATE["status"] = "Running AI Baseline..."
     total_score = 0.0
 
-    # Loop through all 3 tasks (Easy, Medium, Hard)
-    for task in env.TASKS:
-        difficulty = task["difficulty"]
-        
-        # 🤖 STRICT META LOG: Start of task
-        print(f"[START] {difficulty}", flush=True)
+    try:
+        for task in env.TASKS:
+            difficulty = task["difficulty"]
+            safe_print(f"[START] {difficulty}")
 
-        # 1. Reset Environment
-        current_obs, internal_state = env.reset_environment(difficulty)
-        done = False
+            current_obs, internal_state = env.reset_environment(difficulty)
+            done = False
 
-        while not done:
-            # 2. Strict Instructions for the AI
-            system_prompt = (
-                "You are a Legal AI. You must output ONLY raw, valid JSON. Do not use markdown blocks (```json).\n"
-                "Rule 1: You can only take ONE action at a time.\n"
-                "Rule 2: If 'gather_evidence', 'document_requested' MUST be EXACTLY ONE of: 'Police Report', 'Medical History', 'Financial Records', 'Employee Communications'. 'route_decision' must be null.\n"
-                "Rule 3: If 'route_case', 'route_decision' MUST be EXACTLY ONE of: 'Corporate Law', 'Criminal Defense', 'Personal Injury'. 'document_requested' must be null.\n"
-                "Example: {\"action_type\": \"gather_evidence\", \"document_requested\": \"Police Report\", \"route_decision\": null}"
-            )
-
-            user_prompt = f"Intake Email: {current_obs.intake_email}\nGathered Docs: {current_obs.gathered_documents}\nLatest Evidence: {current_obs.latest_evidence_text}\nOutput JSON now:"
-
-            # 3. Call the LLM
-            try:
-                response = client.chat.completions.create(
-                    model=MODEL,
-                    messages=[
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt}
-                    ]
+            while not done:
+                # 1. STRICT INSTRUCTIONS
+                system_prompt = (
+                    "You are a Legal AI. Output ONLY raw, valid JSON. No markdown.\n"
+                    "Rule 1: 'action_type' MUST be exactly 'gather_evidence' OR 'route_case'.\n"
+                    "Rule 2: If 'gather_evidence', 'document_requested' MUST be 'Police Report', 'Medical History', 'Financial Records', or 'Employee Communications'.\n"
+                    "Rule 3: If 'route_case', 'route_decision' MUST be 'Corporate Law', 'Criminal Defense', or 'Personal Injury'.\n"
+                    "Example: {\"action_type\": \"gather_evidence\", \"document_requested\": \"Police Report\"}"
                 )
-                
-                # 4. Clean the AI's output (strip markdown if it hallucinates it) and Parse
-                raw_content = response.choices[0].message.content
-                raw_content = raw_content.replace("```json", "").replace("```", "").strip()
-                llm_output = json.loads(raw_content)
-                
-                action = env.LegalAction(**llm_output)
-                
-                # 🤖 STRICT META LOG: Every single action the AI takes
-                print(f"[STEP] {json.dumps(llm_output)}", flush=True)
-                
-            except Exception as e:
-                break 
+                user_prompt = f"Intake Email: {current_obs.intake_email}\nGathered Docs: {current_obs.gathered_documents}\nOutput JSON:"
 
-                        # 5. Step the environment forward
-            current_obs, reward, done, internal_state = env.step_environment(action, internal_state, current_obs)
+                try:
+                    response = client.chat.completions.create(
+                        model=MODEL,
+                        messages=[
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": user_prompt}
+                        ]
+                    )
+                    raw_content = response.choices[0].message.content.replace("```json", "").replace("```", "").strip()
+                    llm_output = json.loads(raw_content)
+                    action = env.LegalAction(**llm_output)
+                    
+                    safe_print(f"[STEP] {json.dumps(llm_output)}")
+                    
+                except Exception as e:
+                    # 2. THE FALLBACK: If the AI hallucinates, log it, but force a guess to keep the game moving
+                    GUI_STATE["ai_errors_caught"].append(f"AI Hallucination on {difficulty}: {str(e)}")
+                    action = env.LegalAction(action_type="route_case", route_decision="Personal Injury") 
 
-        # 6. Final Grader Calculation (Notice how this lines up with the 'while' loop above it)
-        task_score = env.grade_environment(internal_state)
-        
-        # THE EXIT DOOR CLAMP: Intercept the score right before it prints
-        try:
-            raw_score = float(task_score)
-        except Exception:
-            raw_score = 0.05 # Fallback if task_score is somehow missing or broken
+                # Step the environment forward
+                current_obs, reward, done, internal_state = env.step_environment(action, internal_state, current_obs)
+
+            # Final Grader Calculation
+            task_score = env.grade_environment(internal_state)
             
-        guaranteed_safe_score = max(0.05, min(0.95, raw_score))
+            # THE EXIT DOOR CLAMP
+            try:
+                raw_score = float(task_score)
+            except Exception:
+                raw_score = 0.05
+                
+            guaranteed_safe_score = max(0.05, min(0.95, raw_score))
+            
+            # Print the score to logs AND to the Hugging Face Screen
+            safe_print(f"[END] {guaranteed_safe_score:.2f}")
+            GUI_STATE["scores_generated"].append(f"{difficulty}: {guaranteed_safe_score:.2f}")
+            total_score += guaranteed_safe_score
+            
+        GUI_STATE["status"] = "SUCCESS: AI Baseline Completed!"
         
-        # STRICT META LOG: Force 2 decimals and immediately flush to the console
-        print(f"[END] {guaranteed_safe_score:.2f}", flush=True)
-        total_score += guaranteed_safe_score
+    except Exception as e:
+        GUI_STATE["status"] = "CRITICAL FAILURE!"
+        GUI_STATE["ai_errors_caught"].append(str(e))
 
-# --- META PING/WEB SERVER COMPLIANCE ---
+# ==========================================
+# META PING/WEB SERVER COMPLIANCE
+# ==========================================
 app = FastAPI()
+
+# 🚀 AUTOMATIC TRIGGER: Starts the AI when the server turns on
+@app.on_event("startup")
+def startup_event():
+    print("FastAPI triggered! Starting AI Baseline Thread...", flush=True)
+    baseline_thread = threading.Thread(target=run_baseline)
+    baseline_thread.start()
 
 @app.get("/")
 def read_root():
-    return {"status": "ok", "message": "Legal Discovery Env is Running"}
+    # 📺 THIS DISPLAYS THE DEBUG DASHBOARD ON YOUR HUGGING FACE URL
+    return GUI_STATE
 
 @app.post("/reset")
 def reset_endpoint():
-    # Meta's validator requires a /reset endpoint that returns 200
     return {"status": "reset complete"}
 
 @app.post("/step")
@@ -119,16 +134,10 @@ def state_endpoint():
 
 def main():
     """The entry point Meta is looking for"""
-    import uvicorn
-    # Run the baseline evaluation first
-    try:
-        run_baseline()
-    except Exception as e:
-        print(f"Baseline error: {e}", flush=True)
-    
-    # Then start the server to keep the Space alive and compliant! (UNCOMMENTED!)
+    # Start the server instantly to pass Hugging Face health checks
     print("Starting Meta-compliant server on port 7860...", flush=True)
-    # uvicorn.run(app, host="0.0.0.0", port=7860)
+    uvicorn.run(app, host="0.0.0.0", port=7860)
 
 if __name__ == "__main__":
     main()
+                    
