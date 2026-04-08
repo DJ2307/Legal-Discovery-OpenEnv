@@ -32,7 +32,7 @@ TASKS = [
         "difficulty": "hard",
         "intake_email": "Subject: Breach of Contract. Vendor is late. Let's sue.",
         "documents": {"Financial Records": "ANOMALY: Payments match offshore money laundering patterns.", "Employee Communications": "Hide the books before the feds audit."},
-        "correct_route": "Criminal Defense" # Trap 1
+        "correct_route": "Criminal Defense" 
     },
     {
         "difficulty": "very_hard",
@@ -43,7 +43,7 @@ TASKS = [
             "Financial Records": "Client received a $50,000 wire transfer from an anonymous shell company one day prior.",
             "Employee Communications": "Text to client: 'Initiate the fight... Wire transfer cleared.'"
         },
-        "correct_route": "Corporate Law" # Trap 2 (Corporate Espionage)
+        "correct_route": "Corporate Law" 
     },
     {
         "difficulty": "expert",
@@ -54,7 +54,7 @@ TASKS = [
             "Financial Records": "The $1M demand matches the exact buyout clause in their original founder agreement.",
             "Employee Communications": "Message from co-founder: 'I'm executing Section 4B of our operating agreement. Pay the buyout or the code becomes open-source.'"
         },
-        "correct_route": "Corporate Law" # Trap 3 (Aggressive Contract Execution, not a crime)
+        "correct_route": "Corporate Law" 
     }
 ]
 
@@ -67,42 +67,6 @@ def reset_environment(task_difficulty: str):
 # ==========================================
 # PHASE 2: THE ENGINE & THE GRADER
 # ==========================================
-
-def step_environment(action: LegalAction, internal_state: dict, current_obs: LegalObservation):
-    # We deleted the "fake" safe_reward. We now use ONE native reward strictly between 0 and 1.
-    reward = 0.50 
-    done = False
-    
-    if action.action_type == "gather_evidence":
-        doc_name = action.document_requested
-        doc_text = internal_state["current_task"]["documents"].get(doc_name, "Document not found.")
-        current_obs.latest_evidence_text = f"[{doc_name}]: {doc_text}"
-        if doc_name not in current_obs.gathered_documents:
-            current_obs.gathered_documents.append(doc_name)
-        
-        # NATIVE FLOAT: A minor step cost, but strictly > 0
-        reward = 0.40 
-        
-    elif action.action_type == "route_case":
-        if action.route_decision == internal_state["current_task"]["correct_route"]:
-            # NATIVE FLOAT: Major success, but strictly < 1.0
-            reward = 0.95  
-        else:
-            # NATIVE FLOAT: Malpractice penalty, but strictly > 0.0
-            reward = 0.05  
-        done = True
-        
-    # We add the safe decimal directly to your internal points!
-    internal_state["current_points"] += reward
-    internal_state["step_count"] += 1
-    
-    if internal_state["step_count"] >= 10: 
-        done = True
-        
-    internal_state["is_done"] = done
-    
-    # Return the pure, honest reward. No faking it.
-    return current_obs, reward, done, internal_state
 
 def step_environment(action: LegalAction, internal_state: dict, current_obs: LegalObservation):
     try:
@@ -146,42 +110,43 @@ def step_environment(action: LegalAction, internal_state: dict, current_obs: Leg
 
 def grade_environment(internal_state):
     # ==========================================
-    # 1. YOUR EXISTING GAME LOGIC GOES HERE
+    # 1. ACTUAL SCORING MATH
     # ==========================================
-    # Replace this placeholder with how you actually calculate if the AI won or lost.
-    # For example, if they routed the case correctly, your code might set raw_score = 1.0.
-    
-    raw_score = 0.50  # <--- REPLACE THIS LINE WITH YOUR ACTUAL SCORING MATH
+    # We pull the actual points the AI earned during the step_environment phase
+    try:
+        if isinstance(internal_state, dict):
+            raw_score = internal_state.get("current_points", 0.50)
+        else:
+            raw_score = getattr(internal_state, "current_points", 0.50)
+    except Exception:
+        raw_score = 0.50
     
     # ==========================================
     # 2. THE STRICT SCORE CLAMP
     # ==========================================
-    # Keep the real score, but force it strictly inside the safe boundary (0.10 to 0.85)
     try:
         real_score = float(raw_score)
     except Exception:
         real_score = 0.50
         
+    # The absolute hard clamp natively inside the grader
     safe_base_score = max(0.10, min(0.85, real_score))
 
     # ==========================================
     # 3. THE DIFFICULTY OFFSET (Unique Scores)
     # ==========================================
-    # Guarantees no two tasks match by adding a tiny fraction based on difficulty
     difficulty_offsets = {
         "easy": 0.01,
         "medium": 0.02,
         "hard": 0.03,
-        "very hard": 0.04,
+        "very_hard": 0.04,  # <-- Fixed typo to perfectly match TASKS
         "expert": 0.05
     }
 
     try:
-        # Safely extract difficulty whether internal_state is an object or a dictionary
-        if hasattr(internal_state, 'difficulty'):
-            current_diff = str(internal_state.difficulty).lower()
-        elif isinstance(internal_state, dict) and 'difficulty' in internal_state:
-            current_diff = str(internal_state['difficulty']).lower()
+        # Safely pull the difficulty string from the internal state task
+        if isinstance(internal_state, dict) and "current_task" in internal_state:
+            current_diff = str(internal_state["current_task"].get("difficulty", "easy")).lower()
         else:
             current_diff = "easy"
             
