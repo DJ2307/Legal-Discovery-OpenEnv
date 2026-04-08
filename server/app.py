@@ -14,7 +14,9 @@ import time
 # We completely rely on the validator's injected credentials.
 # No hardcoded keys. No Google endpoints.
 API_BASE_URL = os.environ.get("API_BASE_URL")
-API_KEY = os.environ.get("API_KEY") 
+
+# 🛡️ THE FIX: Add a fallback string so the Docker build doesn't crash on None!
+API_KEY = os.environ.get("API_KEY", "dummy_key_to_bypass_build_crash") 
 MODEL_NAME = os.environ.get("MODEL_NAME")
 
 client = OpenAI(
