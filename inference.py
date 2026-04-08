@@ -6,15 +6,17 @@ from openai import OpenAI
 from server import env  
 
 # ==========================================
-# STRICT META COMPLIANCE VARIABLES
+# 🚨 STRICT META COMPLIANCE VARIABLES 🚨
+# Matching the exact requirements from the email
 # ==========================================
 API_BASE_URL = os.environ.get("API_BASE_URL")
 MODEL_NAME = os.environ.get("MODEL_NAME")
-HF_TOKEN = os.environ.get("HF_TOKEN")
+# 🚨 CHANGED: Using API_KEY as explicitly required by the Meta validator
+API_KEY = os.environ.get("API_KEY") 
 
 client = OpenAI(
     base_url=API_BASE_URL,
-    api_key=HF_TOKEN
+    api_key=API_KEY
 )
 
 def run_baseline():
@@ -44,7 +46,7 @@ def run_baseline():
             time.sleep(2.0) 
 
             try:
-                # 🧠 PURE AI CALL
+                # 🧠 PURE AI CALL using Meta's Proxy
                 response = client.chat.completions.create(
                     model=MODEL_NAME,
                     messages=[
@@ -64,8 +66,7 @@ def run_baseline():
                 
             except Exception as e:
                 # 🚨 AUTHENTIC FAILURE HANDLING
-                # If the AI hallucinates bad JSON or the API crashes, we do NOT fake a success.
-                # We log an error step for the parser, and instantly break the loop to grade the failure natively.
+                # If the AI hallucinates bad JSON or the API crashes, we log the failure and break out.
                 error_log = {"action_type": "error", "reason": "AI Failed or Output Invalid JSON"}
                 print(f"[STEP] {json.dumps(error_log)}", flush=True)
                 break 
@@ -73,8 +74,7 @@ def run_baseline():
         # ==========================================
         # 🛡️ PURE SCORE RETRIEVAL
         # ==========================================
-        # We grab the TRUE score directly from env.py. No mock math, no fake offsets.
-        # (Assuming your env.py has the difficulty clamp we discussed earlier)
+        # We grab the TRUE score directly from env.py.
         try:
             final_score = float(env.grade_environment(internal_state))
         except Exception:
