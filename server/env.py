@@ -145,21 +145,29 @@ def step_environment(action: LegalAction, internal_state: dict, current_obs: Leg
         return current_obs, 0.05, True, internal_state
 
 def grade_environment(internal_state):
-    # ... [YOUR EXISTING LOGIC THAT CALCULATES THE ACTUAL SCORE] ...
-    # Assume your actual game logic calculates a variable called `raw_score`
-    # Make sure `raw_score` is a decimal (e.g., 0.0 to 1.0)
+    # ==========================================
+    # 1. YOUR EXISTING GAME LOGIC GOES HERE
+    # ==========================================
+    # Replace this placeholder with how you actually calculate if the AI won or lost.
+    # For example, if they routed the case correctly, your code might set raw_score = 1.0.
     
-    # 1. THE ACTUAL SCORE CLAMP
-    # Keep the real score, but force it inside the safe boundary (0.10 to 0.85)
+    raw_score = 0.50  # <--- REPLACE THIS LINE WITH YOUR ACTUAL SCORING MATH
+    
+    # ==========================================
+    # 2. THE STRICT SCORE CLAMP
+    # ==========================================
+    # Keep the real score, but force it strictly inside the safe boundary (0.10 to 0.85)
     try:
         real_score = float(raw_score)
-    except:
+    except Exception:
         real_score = 0.50
         
     safe_base_score = max(0.10, min(0.85, real_score))
 
-    # 2. THE DIFFICULTY OFFSET (Guarantees Unique Scores)
-    # We add a tiny fraction based on the task difficulty so no two tasks ever match.
+    # ==========================================
+    # 3. THE DIFFICULTY OFFSET (Unique Scores)
+    # ==========================================
+    # Guarantees no two tasks match by adding a tiny fraction based on difficulty
     difficulty_offsets = {
         "easy": 0.01,
         "medium": 0.02,
@@ -167,16 +175,23 @@ def grade_environment(internal_state):
         "very hard": 0.04,
         "expert": 0.05
     }
-    
-    # Try to grab the difficulty from the internal state. 
-    # (If your state doesn't track it directly, it defaults to +0.01)
+
     try:
-        current_diff = str(internal_state.difficulty).lower()
+        # Safely extract difficulty whether internal_state is an object or a dictionary
+        if hasattr(internal_state, 'difficulty'):
+            current_diff = str(internal_state.difficulty).lower()
+        elif isinstance(internal_state, dict) and 'difficulty' in internal_state:
+            current_diff = str(internal_state['difficulty']).lower()
+        else:
+            current_diff = "easy"
+            
         offset = difficulty_offsets.get(current_diff, 0.01)
     except Exception:
         offset = 0.01
 
-    # 3. FINAL UNIQUE CALCULATION
+    # ==========================================
+    # 4. FINAL CALCULATION
+    # ==========================================
     final_score = safe_base_score + offset
     
-    return final_score
+    return final_score 
