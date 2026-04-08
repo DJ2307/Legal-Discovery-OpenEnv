@@ -6,19 +6,20 @@ from server import env
 from fastapi import FastAPI
 import uvicorn
 import threading
+import time
 
 # ==========================================
-# META COMPLIANCE VARIABLES (GEMINI DIRECT)
+# 🚨 STRICT META COMPLIANCE VARIABLES 🚨
 # ==========================================
-# Point the client directly to Google's OpenAI-compatible endpoint
-API_BASE_URL = os.environ.get("API_BASE_URL", "https://generativelanguage.googleapis.com/v1beta/openai/")
+# We completely rely on the validator's injected credentials.
+# No hardcoded keys. No Google endpoints.
+API_BASE_URL = os.environ.get("API_BASE_URL")
+API_KEY = os.environ.get("API_KEY") 
+MODEL_NAME = os.environ.get("MODEL_NAME")
 
-# 🚀 USING GEMINI 2.5 FLASH
-MODEL = "gemini-2.5-flash"
-
-# 🚨 HARDCODED GEMINI KEY (Revoke after hackathon!)
 client = OpenAI(
     base_url=API_BASE_URL,
+    api_key=API_KEY 
 )
 
 # ==========================================
@@ -47,8 +48,11 @@ def run_baseline():
 
             current_obs, internal_state = env.reset_environment(difficulty)
             done = False
+            step_count = 0  # 🛡️ Infinite Loop Breaker
 
-            while not done:
+            while not done and step_count < 15:
+                step_count += 1
+                
                 # 1. STRICT INSTRUCTIONS
                 system_prompt = (
                     "You are a Legal AI. Output ONLY raw, valid JSON. No markdown.\n"
@@ -59,9 +63,13 @@ def run_baseline():
                 )
                 user_prompt = f"Intake Email: {current_obs.intake_email}\nGathered Docs: {current_obs.gathered_documents}\nOutput JSON:"
 
+                # Pacing for proxy limits
+                time.sleep(2.0)
+
                 try:
+                    # 🧠 Connects strictly through Meta's LiteLLM Proxy
                     response = client.chat.completions.create(
-                        model=MODEL,
+                        model=MODEL_NAME, 
                         messages=[
                             {"role": "system", "content": system_prompt},
                             {"role": "user", "content": user_prompt}
@@ -74,14 +82,14 @@ def run_baseline():
                     safe_print(f"[STEP] {json.dumps(llm_output)}")
                     
                 except Exception as e:
-                    # 2. THE FALLBACK: If the AI hallucinates, log it, but force a guess to keep the game moving
+                    # 2. THE FALLBACK
                     GUI_STATE["ai_errors_caught"].append(f"AI Hallucination on {difficulty}: {str(e)}")
                     action = env.LegalAction(action_type="route_case", route_decision="Personal Injury") 
 
                 # Step the environment forward
                 current_obs, reward, done, internal_state = env.step_environment(action, internal_state, current_obs)
 
-            # Final Grader Calculation
+            # Final Grader Calculation 
             task_score = env.grade_environment(internal_state)
             
             # THE EXIT DOOR CLAMP
@@ -134,10 +142,8 @@ def state_endpoint():
 
 def main():
     """The entry point Meta is looking for"""
-    # Start the server instantly to pass Hugging Face health checks
     print("Starting Meta-compliant server on port 7860...", flush=True)
     uvicorn.run(app, host="0.0.0.0", port=7860)
 
 if __name__ == "__main__":
     main()
-                    
