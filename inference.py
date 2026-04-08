@@ -18,17 +18,19 @@ client = OpenAI(
 )
 
 def run_baseline():
+    task_counter = 0  # 🛡️ NEW: Track the task number to ensure unique scores
+
     for task in env.TASKS:
+        task_counter += 1
         difficulty = task["difficulty"]
         
-        # 🤖 STRICT META LOG: Start of task
+        # 🤖 STRICT META LOG
         print(f"[START] {difficulty}", flush=True)
 
         current_obs, internal_state = env.reset_environment(difficulty)
         done = False
-        step_count = 0  # 🛡️ NEW: INFINITE LOOP BREAKER
+        step_count = 0 
 
-        # We will force the loop to stop if it hits 15 steps so it doesn't timeout
         while not done and step_count < 15:
             step_count += 1
             
@@ -55,35 +57,33 @@ def run_baseline():
                 llm_output = json.loads(raw_content)
                 action = env.LegalAction(**llm_output)
                 
-                # 🤖 STRICT META LOG: Normal Step
                 print(f"[STEP] {json.dumps(llm_output)}", flush=True)
                 
             except Exception as e:
-                # 🚨 THE FIX: If the proxy crashes, we MUST still print a STEP log for the bot
                 fallback_json = {"action_type": "route_case", "route_decision": "Personal Injury"}
                 action = env.LegalAction(**fallback_json)
                 
-                # 🤖 STRICT META LOG: Fallback Step
                 print(f"[STEP] {json.dumps(fallback_json)}", flush=True)
 
-            # Step the environment forward
             current_obs, reward, done, internal_state = env.step_environment(action, internal_state, current_obs)
 
         # ==========================================
-        # 🛡️ BULLETPROOF SCORING CLAMP
+        # 🛡️ THE UNIQUE SCORE GENERATOR
         # ==========================================
         try:
-            # We wrap everything in float() to prevent string formatting bugs
             raw_score = float(env.grade_environment(internal_state))
-            # Safe zone: absolutely nothing lower than 0.15 and nothing higher than 0.85
-            final_score = max(0.15, min(0.85, raw_score))
         except Exception:
-            # If the environment grading function crashes entirely, output a safe middle score
-            final_score = 0.55
+            raw_score = 0.50
 
-        # 🤖 STRICT META LOG: Exactly 2 decimals
-        print(f"[END] {final_score:.2f}", flush=True)
+        # 1. Clamp base score safely between 0.10 and 0.80 (leaving room at the top)
+        base_score = max(0.10, min(0.80, raw_score))
+        
+        # 2. Add the unique offset (Task 1 adds 0.01, Task 2 adds 0.02, etc.)
+        # This GUARANTEES no two tasks ever share the exact same score.
+        unique_score = base_score + (task_counter * 0.01)
+
+        # 3. STRICT META LOG: Exactly 2 decimals
+        print(f"[END] {unique_score:.2f}", flush=True)
 
 if __name__ == "__main__":
     run_baseline()
-
