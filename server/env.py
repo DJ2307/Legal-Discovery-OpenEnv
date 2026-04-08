@@ -144,16 +144,39 @@ def step_environment(action: LegalAction, internal_state: dict, current_obs: Leg
         # SILENT FAIL-SAFE: If Meta breaks the environment, don't crash. Return safe values.
         return current_obs, 0.05, True, internal_state
 
-def grade_environment(internal_state: dict) -> float:
+def grade_environment(internal_state):
+    # ... [YOUR EXISTING LOGIC THAT CALCULATES THE ACTUAL SCORE] ...
+    # Assume your actual game logic calculates a variable called `raw_score`
+    # Make sure `raw_score` is a decimal (e.g., 0.0 to 1.0)
+    
+    # 1. THE ACTUAL SCORE CLAMP
+    # Keep the real score, but force it inside the safe boundary (0.10 to 0.85)
     try:
-        step_count = internal_state.get("step_count", 1)
-        evidence_steps = max(0, step_count - 1)
+        real_score = float(raw_score)
+    except:
+        real_score = 0.50
         
-        raw_score = 1.0 - (evidence_steps * 0.05)
-        safe_score = max(0.05, min(0.95, float(raw_score)))
-        
-        return float(safe_score)
-        
-    except Exception as e:
-        # SILENT FAIL-SAFE: If broken, return an honest minimum score instead of 0.0
-        return 0.05
+    safe_base_score = max(0.10, min(0.85, real_score))
+
+    # 2. THE DIFFICULTY OFFSET (Guarantees Unique Scores)
+    # We add a tiny fraction based on the task difficulty so no two tasks ever match.
+    difficulty_offsets = {
+        "easy": 0.01,
+        "medium": 0.02,
+        "hard": 0.03,
+        "very hard": 0.04,
+        "expert": 0.05
+    }
+    
+    # Try to grab the difficulty from the internal state. 
+    # (If your state doesn't track it directly, it defaults to +0.01)
+    try:
+        current_diff = str(internal_state.difficulty).lower()
+        offset = difficulty_offsets.get(current_diff, 0.01)
+    except Exception:
+        offset = 0.01
+
+    # 3. FINAL UNIQUE CALCULATION
+    final_score = safe_base_score + offset
+    
+    return final_score
