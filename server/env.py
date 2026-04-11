@@ -118,7 +118,8 @@ def reset_environment(task_difficulty: str):
 
 def step_environment(action: LegalAction, internal_state: dict, current_obs: LegalObservation):
     try:
-        reward = 0.00  # ZERO for intermediate steps!
+        # 🚨 THE FIX: No more 0.00! Every action gets at least a tiny fraction.
+        reward = 0.01  
         done = False
         task = internal_state.get("current_task", {})
         
@@ -144,22 +145,23 @@ def step_environment(action: LegalAction, internal_state: dict, current_obs: Leg
             
         elif action.action_type == "route_case":
             correct_route = task.get("correct_route", "")
-            # THE PAYOUT: Strictly between 0 and 1
             if action.route_decision == correct_route:
-                reward = 0.95  
+                # 🚨 THE FIX: Capped at 0.80 so the total sum NEVER hits 1.00
+                reward = 0.80  
             else:
                 reward = 0.15  
             done = True
             
         internal_state["step_count"] = internal_state.get("step_count", 0) + 1
         
-        # Hard stop to prevent infinite loops
-        if internal_state["step_count"] >= 15 and not done: 
+        # 🚨 THE FIX: Capped at 10 steps. Max possible score = (9 * 0.01) + 0.80 = 0.89. Safe!
+        if internal_state["step_count"] >= 10 and not done: 
             done = True
-            reward = 0.05 # Penalty for timeout
+            reward = 0.05 
             
         internal_state["is_done"] = done
         return current_obs, float(round(reward, 2)), done, internal_state
         
     except Exception:
-        return current_obs, 0.01, True, internal_state
+        # 🚨 THE FIX: Exception returns 0.02 instead of 0.00
+        return current_obs, 0.02, True, internal_state
