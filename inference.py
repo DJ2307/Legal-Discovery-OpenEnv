@@ -26,9 +26,10 @@ def run_baseline():
         current_obs, internal_state = env.reset_environment(difficulty)
         done = False
         step_count = 0  
-        step_rewards = [] # 🚨 NEW: Tracks the exact reward of every step
+        step_rewards = [] 
 
-        while not done and step_count < 15:
+        # 🚨 THE FIX: Loop matches the env.py cap of 10
+        while not done and step_count < 10:
             step_count += 1
             
             system_prompt = (
@@ -58,7 +59,6 @@ def run_baseline():
                 
                 current_obs, reward, done, internal_state = env.step_environment(action, internal_state, current_obs)
                 
-                # Append reward for the final array
                 step_rewards.append(reward)
                 
                 target = action.document_requested or action.route_decision or "none"
@@ -68,19 +68,14 @@ def run_baseline():
                 print(f"[STEP] step={step_count} action={action_str} reward={reward:.2f} done={str(done).lower()} error=null", flush=True)
                 
             except Exception as e:
-                reward = 0.01
+                # 🚨 THE FIX: If AI crashes, log 0.02. Absolutely NO 0.00.
+                reward = 0.02
                 done = True
                 step_rewards.append(reward)
-                print(f"[STEP] step={step_count} action=parse_error reward=0.01 done=true error=invalid_json", flush=True)
+                print(f"[STEP] step={step_count} action=parse_error reward=0.02 done=true error=invalid_json", flush=True)
                 break 
 
-        # ==========================================
-        # 🛡️ THE BULLETPROOF END LOG
-        # ==========================================
-        # Format rewards as comma separated: "0.00,0.00,0.95"
         rewards_str = ",".join([f"{r:.2f}" for r in step_rewards])
-        
-        # Calculate success based on total score > 0.50
         total_score = sum(step_rewards)
         success_status = str(total_score >= 0.50).lower()
         
