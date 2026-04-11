@@ -21,12 +21,12 @@ def run_baseline():
     for task in env.TASKS:
         difficulty = task["difficulty"]
         
-        # 🤖 PDF COMPLIANT LOG: [START]
         print(f"[START] task={difficulty} env=legal-discovery model={MODEL_NAME}", flush=True)
 
         current_obs, internal_state = env.reset_environment(difficulty)
         done = False
         step_count = 0  
+        step_rewards = [] # 🚨 NEW: Tracks the exact reward of every step
 
         while not done and step_count < 15:
             step_count += 1
@@ -42,11 +42,9 @@ def run_baseline():
             )
             user_prompt = f"Intake Email: {current_obs.intake_email}\nGathered Docs: {current_obs.gathered_documents}\nOutput JSON:"
 
-            # ⚡ Faster pacing to avoid Docker timeouts (12 tasks is a lot!)
             time.sleep(0.5) 
 
             try:
-                # 🧠 PURE AI CALL
                 response = client.chat.completions.create(
                     model=MODEL_NAME,
                     messages=[
@@ -58,11 +56,11 @@ def run_baseline():
                 llm_output = json.loads(raw_content)
                 action = env.LegalAction(**llm_output)
                 
-                # Step the environment forward
                 current_obs, reward, done, internal_state = env.step_environment(action, internal_state, current_obs)
                 
-                # 🤖 PDF COMPLIANT LOG: [STEP]
-                # Format: action_type(target) e.g., gather_evidence(Police_Report)
+                # Append reward for the final array
+                step_rewards.append(reward)
+                
                 target = action.document_requested or action.route_decision or "none"
                 target = str(target).replace(" ", "_")
                 action_str = f"{action.action_type}('{target}')"
@@ -70,22 +68,23 @@ def run_baseline():
                 print(f"[STEP] step={step_count} action={action_str} reward={reward:.2f} done={str(done).lower()} error=null", flush=True)
                 
             except Exception as e:
-                # 🚨 PDF COMPLIANT LOG: ERROR STEP
-                print(f"[STEP] step={step_count} action=parse_error reward=0.00 done=true error=invalid_json", flush=True)
+                reward = 0.01
+                done = True
+                step_rewards.append(reward)
+                print(f"[STEP] step={step_count} action=parse_error reward=0.01 done=true error=invalid_json", flush=True)
                 break 
 
         # ==========================================
-        # 🛡️ SCORE RETRIEVAL
+        # 🛡️ THE BULLETPROOF END LOG
         # ==========================================
-        try:
-            final_score = float(env.grade_environment(internal_state))
-        except Exception:
-            final_score = 0.55
-
-        # 🤖 PDF COMPLIANT LOG: [END]
-        # Evaluates success as true if score is above 0.50
-        success_status = str(final_score >= 0.50).lower()
-        print(f"[END] success={success_status} steps={step_count} rewards={final_score:.2f}", flush=True)
+        # Format rewards as comma separated: "0.00,0.00,0.95"
+        rewards_str = ",".join([f"{r:.2f}" for r in step_rewards])
+        
+        # Calculate success based on total score > 0.50
+        total_score = sum(step_rewards)
+        success_status = str(total_score >= 0.50).lower()
+        
+        print(f"[END] success={success_status} steps={step_count} rewards={rewards_str}", flush=True)
 
 if __name__ == "__main__":
     run_baseline()
