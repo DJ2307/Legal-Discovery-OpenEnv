@@ -34,12 +34,14 @@ def run_baseline():
         while not done and step_count < 15:
             step_count += 1
             
-            system_prompt = (
-                "You are a Legal AI. Output ONLY raw, valid JSON. No markdown.\n"
-                "Rule 1: 'action_type' MUST be exactly 'gather_evidence' OR 'route_case'.\n"
-                "Rule 2: If 'gather_evidence', 'document_requested' MUST be 'Police Report', 'Medical History', 'Financial Records', or 'Employee Communications'.\n"
-                "Rule 3: If 'route_case', 'route_decision' MUST be 'Corporate Law', 'Criminal Defense', or 'Personal Injury'.\n"
-                "Example: {\"action_type\": \"gather_evidence\", \"document_requested\": \"Police Report\"}"
+           system_prompt = (
+                "You are an elite Legal Case Routing AI operating at a top-tier law firm.\n"
+                "You MUST output ONLY raw, valid JSON. No markdown wrappers, no formatting.\n"
+                "Rule 1: You must ALWAYS provide a 'reasoning' string explaining your deductive logic before taking an action.\n"
+                "Rule 2: 'action_type' MUST be exactly 'gather_evidence', 'request_subpoena', OR 'route_case'.\n"
+                "Rule 3: Use 'gather_evidence' for basic documents. If an error says ACCESS DENIED, you MUST use 'request_subpoena' for that document.\n"
+                "Rule 4: If 'route_case', 'route_decision' MUST be 'Corporate Law', 'Criminal Defense', or 'Personal Injury'.\n"
+                "Example: {\"reasoning\": \"The initial email mentions a breach of contract, but the records are denied. I must subpoena Offshore Bank Records.\", \"action_type\": \"request_subpoena\", \"document_requested\": \"Offshore Bank Records\"}"
             )
             user_prompt = f"Intake Email: {current_obs.intake_email}\nGathered Docs: {current_obs.gathered_documents}\nOutput JSON:"
 
