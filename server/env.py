@@ -113,14 +113,12 @@ def reset_environment(task_difficulty: str):
     return initial_obs, internal_state
 
 # ==========================================
-# PHASE 2: THE STRICT 2-DECIMAL ENGINE
+# PHASE 2: THE STRICT (0, 1) BOUNDARY ENGINE
 # ==========================================
-
-GLOBAL_TASK_COUNTER = 0
 
 def step_environment(action: LegalAction, internal_state: dict, current_obs: LegalObservation):
     try:
-        reward = 0.05 
+        reward = 0.00  # ZERO for intermediate steps!
         done = False
         task = internal_state.get("current_task", {})
         
@@ -128,14 +126,12 @@ def step_environment(action: LegalAction, internal_state: dict, current_obs: Leg
             doc_name = action.document_requested
             if doc_name in task.get("locked_documents", {}):
                 current_obs.latest_evidence_text = f"[ACCESS DENIED]: {doc_name} requires a formal 'request_subpoena' action."
-                reward = 0.01 # Penalty for illegal search
             else:
                 doc_text = task.get("documents", {}).get(doc_name, "Document not found.")
                 current_obs.latest_evidence_text = f"[{doc_name}]: {doc_text}"
                 if doc_name not in current_obs.gathered_documents:
                     current_obs.gathered_documents.append(doc_name)
-                reward = 0.05 
-                
+                    
         elif action.action_type == "request_subpoena":
             doc_name = action.document_requested
             if doc_name in task.get("locked_documents", {}):
@@ -143,48 +139,27 @@ def step_environment(action: LegalAction, internal_state: dict, current_obs: Leg
                 current_obs.latest_evidence_text = f"[SUBPOENA EXECUTED - {doc_name}]: {doc_text}"
                 if f"Subpoenaed: {doc_name}" not in current_obs.gathered_documents:
                     current_obs.gathered_documents.append(f"Subpoenaed: {doc_name}")
-                reward = 0.10 # Good job escalating
             else:
                 current_obs.latest_evidence_text = f"[SUBPOENA REJECTED]: Lack of probable cause for {doc_name}."
-                reward = 0.01 
             
         elif action.action_type == "route_case":
             correct_route = task.get("correct_route", "")
+            # THE PAYOUT: Strictly between 0 and 1
             if action.route_decision == correct_route:
-                reward = 0.70  
+                reward = 0.95  
             else:
-                reward = 0.10  
+                reward = 0.15  
             done = True
             
-        new_points = internal_state.get("current_points", 0.0) + reward
-        internal_state["current_points"] = round(new_points, 2)
         internal_state["step_count"] = internal_state.get("step_count", 0) + 1
         
-        if internal_state["step_count"] >= 15: 
+        # Hard stop to prevent infinite loops
+        if internal_state["step_count"] >= 15 and not done: 
             done = True
+            reward = 0.05 # Penalty for timeout
             
         internal_state["is_done"] = done
         return current_obs, float(round(reward, 2)), done, internal_state
         
     except Exception:
-        return current_obs, 0.05, True, internal_state
-
-def grade_environment(internal_state) -> float:
-    global GLOBAL_TASK_COUNTER
-    try:
-        if isinstance(internal_state, dict):
-            raw_score = float(internal_state.get("current_points", 0.50))
-        else:
-            raw_score = float(getattr(internal_state, "current_points", 0.50))
-            
-        safe_base = round(max(0.10, min(0.80, raw_score)), 2)
-
-        # UPDATED: Modulo 20 ensures we don't repeat offsets across 12 tasks
-        GLOBAL_TASK_COUNTER += 1
-        offset = round((GLOBAL_TASK_COUNTER % 20 + 1) * 0.01, 2)
-        
-        final_score = round(safe_base + offset, 2)
-        return float(final_score)
-        
-    except Exception:
-        return 0.55
+        return current_obs, 0.01, True, internal_state
